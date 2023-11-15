@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import healpy as hp
-from .config import CMBDIR
+from lbxs4.config import CMBDIR
 import os 
 
 
@@ -9,7 +9,7 @@ class CMBLensed:
     """
     class for getting lensed CMB simulation
     """
-    def __init__(self,nside=512)
+    def __init__(self,nside=512):
         self.nside = nside
 
     def TEB(self,idx):
