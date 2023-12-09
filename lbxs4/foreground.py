@@ -50,12 +50,12 @@ class Foregrounds:
             fname = f"litebird_{fgdir}_uKCMB_{freq}_nside{int(in_nside)}.fits"
             print(f"Reading {fname}...")
             if in_nside != self.nside:
-                tmp_map = hp.read_map(os.path.join(directory,fname),(0,1,2))
+                tmp_map = hp.read_map(os.path.join(directory,fname),(0,1,2)) # type: ignore
                 tmp_alm = hp.map2alm(tmp_map)
                 fgmap += hp.alm2map(tmp_alm,self.nside)
                 del (tmp_map,tmp_alm)
             else:
-                fgmap += hp.read_map(os.path.join(directory,fname),(0,1,2))
+                fgmap += hp.read_map(os.path.join(directory,fname),(0,1,2)) # type: ignore
         return fgmap
 
 

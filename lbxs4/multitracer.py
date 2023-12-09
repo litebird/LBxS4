@@ -2,7 +2,6 @@
 import numpy as np
 import healpy as hp
 import pickle
-import tqdm
 from astropy import units as u
 import os
 
@@ -24,7 +23,7 @@ from lbxs4.config import SPECTRADIR
 # //// Fixed values //// #
 
 # galaxy survey parameters
-def galaxy_distribution( zi, survey=['euc','lss'], zbn={'euc':5,'lss':5}, z0={'euc':.9/np.sqrt(2.),'lss':.311}, nz_b={'euc':1.5,'lss':1.}, sig={'euc':.05,'lss':.05}):
+def galaxy_distribution( zi, survey=['euc','lss'], zbn={'euc':5,'lss':5}, z0={'euc':.9/np.sqrt(2.),'lss':.311}, nz_b={'euc':1.5,'lss':1.}, sig={'euc':.05,'lss':.05}): # type: ignore
     
     zbin, dndzi, pz = {}, {}, {}
 
@@ -36,9 +35,9 @@ def galaxy_distribution( zi, survey=['euc','lss'], zbn={'euc':5,'lss':5}, z0={'e
         zbin['lss'] = np.array([0.,.5,1.,2.,3.,4.,7.])
 
     for s in survey:
-        dndzi[s] = basic.galaxy.dndz_sf(zi,2.,nz_b[s],z0=z0[s])
-        if s=='euc' and zbn['euc']!=5:  zbin[s]  = basic.galaxy.zbin(zbn[s],2.,nz_b[s],z0=z0[s])
-        pz[s]    = {zid: basic.galaxy.photoz_error(zi,[zbin[s][zid],zbin[s][zid+1]],sigma=sig[s],zbias=0.) for zid in range(zbn[s])}
+        dndzi[s] = basic.galaxy.dndz_sf(zi,2.,nz_b[s],z0=z0[s]) # type: ignore
+        if s=='euc' and zbn['euc']!=5:  zbin[s]  = basic.galaxy.zbin(zbn[s],2.,nz_b[s],z0=z0[s]) # type: ignore
+        pz[s]    = {zid: basic.galaxy.photoz_error(zi,[zbin[s][zid],zbin[s][zid+1]],sigma=sig[s],zbias=0.) for zid in range(zbn[s])} # type: ignore
 
     # fractional number density
     frac = {}
@@ -90,6 +89,7 @@ def read_camb_cls(lmax=2048,lminI=100,return_klist=False,**kwargs):
     klist = tracer_list(**kwargs)
     
     # load cl of mass tracers
+    l = None
     cl = {}    
     for I, m0 in klist.items():
         for J, m1 in klist.items():
@@ -110,7 +110,7 @@ def get_covariance_signal(lmax,lmin=1,lminI=100,**kwargs):
         # signal covariance matrix
 
         # read camb cls
-        l, camb_cls, klist = read_camb_cls(lminI=lminI,return_klist=True,**kwargs)
+        l, camb_cls, klist = read_camb_cls(lminI=lminI,return_klist=True,**kwargs) # type: ignore
         nkap = len(klist.keys())
 
         # form covariance
@@ -148,7 +148,7 @@ def get_spectrum_noise(lmax,lminI=100,nu=353.,return_klist=False,frac=None,**kwa
     if 'cib' in klist.values():
         Jysr = c.MJysr2uK(nu)/c.Tcmb
         nI = 2.256e-10
-        nl['cib'] = ( nI + .00029989393 * (1./(l[:lmax+1]+1e-30))**(2.17) ) * Jysr**2
+        nl['cib'] = ( nI + .00029989393 * (1./(l[:lmax+1]+1e-30))**(2.17) ) * Jysr**2 # type: ignore
         nl['cib'][:lminI] = nl['cib'][lminI]
 
     for m in klist.values():

@@ -42,7 +42,7 @@ class Filtering:
         self.nsim = self.sim_lib.nsim
 
         #needed for filtering
-        self.beam = hp.gauss_beam(np.radians(beam/60),lmax = self.lmax)
+        self.beam = hp.gauss_beam(np.radians(beam/60),lmax = self.lmax) # type: ignore
         self.Bl = np.reshape(self.beam,(1,self.lmax+1))
         self.ninv = np.reshape(np.array((self.mask,self.mask)),(2,1,hp.nside2npix(self.nside)))
 
