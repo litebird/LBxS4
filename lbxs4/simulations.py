@@ -37,10 +37,5 @@ class LBSky:
             TEB.append(self.TEB(tag,idx,convolve=convolve))
         return np.array(TEB)
     
-
-
-
-
-    
-    def CompSep_TQU(idx):
+    def HILC(idx):
         pass
