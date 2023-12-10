@@ -5,7 +5,6 @@ from astropy.table import QTable
 from astropy import units as u
 from lbxs4.config import DATDIR
 
-
 class LiteBIRD:
 
     def __init__(self,fname='litebird_instrument_model.tbl'):

@@ -10,3 +10,4 @@ FGDIR = os.path.join(__BASEDIR__,'fg','lb','galactic')
 NOISEDIR = os.path.join(__BASEDIR__,'noise','lb')
 MASSDIR = os.path.join(__BASEDIR__,'mass','alm')
 SPECTRADIR = os.path.join(__BASEDIR__,'mass','spec')
+MASKDIR = '/global/cfs/projectdirs/litebird/simulations/maps/lensing_project_paper/Masks'
