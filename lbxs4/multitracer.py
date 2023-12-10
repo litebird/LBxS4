@@ -1,7 +1,7 @@
 # Module for Multitracers
 import numpy as np
 import healpy as hp
-import pickle
+import pickle as pl
 from astropy import units as u
 import os
 
@@ -17,7 +17,7 @@ import quad_func
 import delens_func
 
 # from local module
-from lbxs4.config import SPECTRADIR
+from lbxs4.config import SPECTRADIR,MASKDIR,MASSDIR
 
 
 # //// Fixed values //// #
@@ -221,7 +221,7 @@ class mass_tracer():
 
     def cov_signal(self):
         
-        return get_covariance_signal(self.lmax,lmin=self.lmin,add_euc=self.add_euc,add_lss=self.add_lss)
+        return get_covariance_signal(self.lmax,lmin=self.lmin,add_euc=self.add_euc,add_lss=self.add_lss,add_cmb=self.add_cmb)
 
     def gal_frac(self):
         
@@ -231,5 +231,58 @@ class mass_tracer():
         
         if frac is None: frac = self.gal_frac()
         
-        return get_covariance_noise(self.lmax,frac=frac,add_euc=self.add_euc,add_lss=self.add_lss)
+        return get_covariance_noise(self.lmax,frac=frac,add_euc=self.add_euc,add_lss=self.add_lss,add_cmb=self.add_cmb)
+
+
+class CoaddKappa:
+
+    def __init__(self,libdir,lmin,lmax,nside):
+        self.nside = nside
+        self.npix = hp.nside2npix(self.nside)
+        self.lmin = lmin
+        self.lmax = lmax
+        self.mass_tracer = mass_tracer(lmin,lmax,add_cmb=['ks4'])
+        self.klist = self.mass_tracer.klist
+        self.nkap = len(self.klist)
+
+        self.cov_s = self.mass_tracer.cov_signal()
+        self.cov_n = self.mass_tracer.cov_noise()
+
+        self.masks = self.mask()
+
+        self.InvN = np.reshape( np.array([ self.masks[m] for m in self.klist.values() ] ),(self.nkap,self.npix) )
+        self.INls = np.array( [ 1./self.cov_n[:,:,l].diagonal() for l in range(lmax+1) ] ).T
+
+    
+    def mask(self,):
+        W = {}
+        W['litebird'] = hp.read_map(os.path.join(MASKDIR,'litebird.fits'))
+        for survey in ['euclid','lsst','cib','cmbs4']:
+            W[survey] = W['litebird']*hp.read_map(os.path.join(MASKDIR,survey+'.fits'))
+        mask = {}
+        for m in self.klist.values():
+            if m == 'klb':  mask[m] = W['litebird']
+            if m == 'ks4':  mask[m] = W['cmbs4']
+            if m == 'cib':  mask[m] = W['cib']
+            if 'euc' in m:  mask[m] = W['euclid']
+            if 'lss' in m:  mask[m] = W['lsst']
+        return mask
+
+    def kappa_maps(self,idx):
+        kmaps = np.zeros((self.nkap,self.npix))
+        for I, m in self.klist.items():
+            sfname = os.path.join(MASSDIR,f's_{m}_{idx:04d}.pkl')
+            nfname = os.path.join(MASSDIR,f'n_{m}_{idx:04d}.pkl')
+            klm = pl.load(open(sfname,'rb')) + pl.load(open(nfname,'rb'))
+            kmap = cs.utils.hp_alm2map(self.nside,self.lmax,self.lmax,np.nan_to_num(klm[:self.lmax+1,:self.lmax+1]))
+            kmaps[I,:] = kmap * self.masks[m]
+            del (klm, kmap)
+        return kmaps
+
+    def coadd(self,idx):
+        kmaps = self.kappa_maps(idx)
+        xlm = cs.cninv.cnfilter_kappa(self.nkap,self.nside,self.lmax,self.cov_s,self.InvN,
+                                      kmaps,inl=self.INls,chn=1,eps=[1e-4],itns=[1000],ro=10,stat='status_mass_cinv-1.txt')
+        return np.array( [ np.dot(self.cov_s[0,:,l],xlm[:,l,:]) for l in range(self.lmax+1) ] )
+
 
