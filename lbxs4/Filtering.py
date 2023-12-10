@@ -7,86 +7,34 @@ import toml
 import healpy as hp
 import curvedsky as cs
 from tqdm import tqdm
+import cmb
+from lbxs4.config import MASKDIR, DATDIR
 
 #from simulation import 
 
 class Filtering:
-    """
-    Filtering class for component separated CMB Maps
-
-    Parameters
-    ----------
-    sim_lib : object : simulation.SimExperimentFG- simulaiton library
-    maskpath : string : path to mask
-    fullsky : bool : if True, use fullsky 
-    beam : float : beam size in arcmin
-    verbose : bool : if True, print verbose output
-    """
-    def __init__(self,sim_lib,maskpath,fullsky,beam,verbose=False):
-
+   
+    def __init__(self,lib_dir,sim_lib,maskpath,beam=None,verbose=False):
+        self.libdir = os.path.join(lib_dir,'Filtering')
         self.sim_lib = sim_lib
-        self.mask = hp.ud_grade(hp.read_map(maskpath),self.sim_lib.dnside)
+        self.mask = hp.ud_grade(hp.read_map(maskpath),self.sim_lib.nside)
         self.fsky = np.average(self.mask)
-        self.fname = ''
-        self.fullsky = fullsky
-        if self.fullsky:
-            self.mask = np.ones(hp.nside2npix(self.sim_lib.dnside))
-            self.fname = '_fullsky'
-            self.fsky = 1.0
 
-        #importing from sim lib
-        self.Tcmb = self.sim_lib.Tcmb
-        self.lmax = self.sim_lib.lmax
-        self.nside = self.sim_lib.dnside
-        self.cl_len = self.sim_lib.cl_len
-        self.nsim = self.sim_lib.nsim
+        
+        self.Tcmb = 2.726e6
+        
+        self.nside = self.sim_lib.nside
+        self.lmax =  3*self.nside - 1
+        self.cl_len = os.path.join(DATDIR,'FFP10_wdipole_lensedCls.dat')
+        self.nsim = None
 
         #needed for filtering
-        self.beam = hp.gauss_beam(np.radians(beam/60),lmax = self.lmax) # type: ignore
-        self.Bl = np.reshape(self.beam,(1,self.lmax+1))
+
         self.ninv = np.reshape(np.array((self.mask,self.mask)),(2,1,hp.nside2npix(self.nside)))
 
-        self.lib_dir = os.path.join(self.sim_lib.outfolder,f"Filtered{self.fname}")
-        if mpi.rank == 0:
-            os.makedirs(self.lib_dir,exist_ok=True)
+        
 
-        self.verbose = verbose
-        self.vprint(f"FILTERING INFO: Outfolder - {self.lib_dir}")
-        self.vprint(f"FILTERING INFO: Mask path - {maskpath}")
-        self.vprint(f"FILTERING INFO: fsky - {self.fsky}")
-        self.vprint(f"FILTERING INFO: Beam - {beam} arcmin")
-        print(f"FILTERING object with {'out' if self.sim_lib.noFG else ''} FG: Loaded")
-    
-    def vprint(self,txt):
-        """
-        print the text if verbose is True
-
-        Parameters
-        ----------
-        txt : string : text to print
-        """
-
-        if self.verbose:
-            print(txt)
-
-    @classmethod
-    def from_ini(cls,ini_file,verbose=False):
-        """
-        class method to create Filtering object from ini file
-
-        Parameters
-        ----------
-        ini_file : string : path to ini file
-        verbose : bool : if True, print verbose output
-        """
-        sim_lib = SimExperimentFG.from_ini(ini_file)
-        config = toml.load(ini_full(ini_file))
-        fc = config['Filtering']
-        maskpath = fc['maskpath']
-        fullsky = bool(fc['fullsky'])
-        beam = float(fc['beam'])
-        return cls(sim_lib,maskpath,fullsky,beam,verbose)
-
+   
     def convolved_TEB(self,idx):
         """
         convolve the component separated map with the beam
@@ -95,11 +43,14 @@ class Filtering:
         ----------
         idx : int : index of the simulation
         """
-        T,E,B = self.sim_lib.get_cleaned_cmb(idx)
-        hp.almxfl(T,self.beam,inplace=True)
-        hp.almxfl(E,self.beam,inplace=True)
-        hp.almxfl(B,self.beam,inplace=True)
+        #T,E,B = self.sim_lib.get_cleaned_cmb(idx)
+        #hp.almxfl(T,self.beam,inplace=True)
+        #hp.almxfl(E,self.beam,inplace=True)
+        #hp.almxfl(B,self.beam,inplace=True)
+        #return T,E,B
+        T,E,B = self.sim_lib.HILC(idx)
         return T,E,B
+        
 
     def TQU_to_filter(self,idx):
         """
@@ -112,13 +63,13 @@ class Filtering:
         T,E,B = self.convolved_TEB(idx)
         return hp.alm2map([T,E,B],nside=self.nside)
 
-    @property
-    def NL(self):
+    
+    def NL(self,idx):
         """
         array manipulation of noise spectra obtained by ILC weight
         for the filtering process
         """
-        nt,ne,nb = self.sim_lib.noise_spectra(self.sim_lib.nsim)
+        nt,ne,nb = self.sim_lib.HILC_ncl(idx)
         return np.reshape(np.array((cli(ne[:self.lmax+1]*self.beam**2),
                           cli(nb[:self.lmax+1]*self.beam**2))),(2,1,self.lmax+1))
 
