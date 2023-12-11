@@ -1,3 +1,4 @@
+# based on https://github.com/litebird/LiteBIRD-lensing/blob/master/tools_multitracer.py
 import numpy as np
 import healpy as hp
 import pickle as pl
