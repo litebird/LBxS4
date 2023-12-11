@@ -114,6 +114,11 @@ class Filtering:
         E,_ = self.cinv_EB(idx)
         clee = self.cl_len[1,:self.lmax+1]
         return cs.utils.almxfl(self.lmax,self.lmax,E,clee)
+    
+    def wiener_B(self,idx):
+        _,B = self.cinv_EB(idx)
+        clbb = self.cl_len[2,:self.lmax+1]
+        return cs.utils.almxfl(self.lmax,self.lmax,B,clbb)
 
     def plot_cinv(self,idx):
         """
@@ -132,7 +137,13 @@ class Filtering:
     
     def plot_wE(self,idx):
         E = self.wiener_E(idx)
-        plt.figure(figsize=(8,8))
-        plt.loglog(cs.utils.alm2cl(self.lmax,E))
+        we = cs.utils.alm2cl(self.lmax,E)
+        plt.figure(figsize=(5,5))
+        plt.loglog(we)
         plt.loglog(self.cl_len[1,:])
+        plt.xlim(2,1000)
+        plt.ylim(1e-18,1e-14)
+        plt.legend(['Wiener E','Input E'], fontsize=15)
+        plt.xlabel('$\ell$',fontsize=20)
+        plt.ylabel('$C_\ell$',fontsize=20)
 

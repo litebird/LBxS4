@@ -1,28 +1,20 @@
-# Module for Multitracers
 import numpy as np
 import healpy as hp
 import pickle as pl
 from astropy import units as u
+import matplotlib.pyplot as plt
 import os
 
-# from cmblensplus/wrap
 import basic
 import curvedsky as cs
-
-# from cmblensplus/utils
 import constant as c
-import misctools
-import cmb
-import quad_func
-import delens_func
-
-# from local module
-from lbxs4.config import SPECTRADIR,MASKDIR,MASSDIR
 
 
-# //// Fixed values //// #
+from lbxs4.config import SPECTRADIR,MASKDIR,MASSDIR,DATDIR
+from lbxs4.utils import camb_clfile
 
-# galaxy survey parameters
+
+
 def galaxy_distribution( zi, survey=['euc','lss'], zbn={'euc':5,'lss':5}, z0={'euc':.9/np.sqrt(2.),'lss':.311}, nz_b={'euc':1.5,'lss':1.}, sig={'euc':.05,'lss':.05}): # type: ignore
     
     zbin, dndzi, pz = {}, {}, {}
@@ -236,7 +228,9 @@ class mass_tracer():
 
 class CoaddKappa:
 
-    def __init__(self,libdir,lmin,lmax,nside):
+    def __init__(self,libdir,lmin,lmax,nside,cl_file='FFP10_wdipole_lenspotentialCls.dat'):
+        self.libdir = os.path.join(libdir,'Kappa')  
+        os.makedirs(self.libdir,exist_ok=True)
         self.nside = nside
         self.npix = hp.nside2npix(self.nside)
         self.lmin = lmin
@@ -249,6 +243,7 @@ class CoaddKappa:
         self.cov_n = self.mass_tracer.cov_noise()
 
         self.masks = self.mask()
+        self.cl_unl = camb_clfile(os.path.join(DATDIR,cl_file))
 
         self.InvN = np.reshape( np.array([ self.masks[m] for m in self.klist.values() ] ),(self.nkap,self.npix) )
         self.INls = np.array( [ 1./self.cov_n[:,:,l].diagonal() for l in range(lmax+1) ] ).T
@@ -256,7 +251,7 @@ class CoaddKappa:
     
     def mask(self,):
         W = {}
-        W['litebird'] = hp.read_map(os.path.join(MASKDIR,'litebird.fits'))
+        W['litebird'] = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,'LB_Nside2048_fsky_0p8_binary.fits')),self.nside)
         for survey in ['euclid','lsst','cib','cmbs4']:
             W[survey] = W['litebird']*hp.read_map(os.path.join(MASKDIR,survey+'.fits'))
         mask = {}
@@ -280,9 +275,23 @@ class CoaddKappa:
         return kmaps
 
     def coadd(self,idx):
-        kmaps = self.kappa_maps(idx)
-        xlm = cs.cninv.cnfilter_kappa(self.nkap,self.nside,self.lmax,self.cov_s,self.InvN,
+        fname = os.path.join(self.libdir,f'coadd_{idx:04d}.pkl')
+        if os.path.isfile(fname):
+            return pl.load(open(fname,'rb'))
+        else:
+            kmaps = self.kappa_maps(idx)
+            xlm = cs.cninv.cnfilter_kappa(self.nkap,self.nside,self.lmax,self.cov_s,self.InvN,
                                       kmaps,inl=self.INls,chn=1,eps=[1e-4],itns=[1000],ro=10,stat='status_mass_cinv-1.txt')
-        return np.array( [ np.dot(self.cov_s[0,:,l],xlm[:,l,:]) for l in range(self.lmax+1) ] )
+            coadded =  np.array( [ np.dot(self.cov_s[0,:,l],xlm[:,l,:]) for l in range(self.lmax+1) ] )
+            del (kmaps, xlm)
+            pl.dump(coadded,open(fname,'wb'))
+            return coadded
+    
+    def plot_coadd(self,idx):
+        l = np.arange(len(self.cl_unl['pp']))
+        dl = (l**2*(l+1)**2)/4
+        coadd = self.coadd(idx)
+        plt.loglog(cs.utils.alm2cl(1000,coadd))
+        plt.loglog(self.cl_unl['pp']*dl)
 
 
