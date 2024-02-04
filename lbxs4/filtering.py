@@ -14,12 +14,20 @@ from lbxs4.utils import cli
 
 class Filtering:
    
-    def __init__(self,lib_dir,sim_lib,maskpath,beam=15,verbose=False):
+    def __init__(self,lib_dir,sim_lib,maskpath,beam=15,s4lib=None,coadd_E=False,verbose=False):
         self.libdir = os.path.join(lib_dir,'Filtering')
         os.makedirs(self.libdir,exist_ok=True)
         self.sim_lib = sim_lib
         self.mask = hp.ud_grade(hp.read_map(maskpath),self.sim_lib.nside)
         self.fsky = np.average(self.mask)
+        # self.s4lib = s4lib
+        # self.s4mask = None
+        # self.s4fsky = None
+        # self.coadd_E = coadd_E
+        # if self.s4lib is not None:
+        #     self.s4mask = hp.ud_grade(hp.read_map(s4lib.maskpath),self.sim_lib.nside)
+        #     self.s4fsky = np.average(self.s4mask)
+
 
         
         self.Tcmb = 2.726e6
@@ -64,6 +72,13 @@ class Filtering:
         T,E,B = self.convolved_TEB(idx)
 
         return hp.alm2map([T,E,B],nside=self.nside)
+    
+    # def S4_to_filter(self,idx):
+    #     if self.s4lib is None:
+    #         raise ValueError("S4 library is not defined")
+    #     T,E,B = self.s4lib.comp_sep_alm(idx)
+    #     Q,U = hp.alm2map_spin([E,B*0],nside=self.nside,spin=2)
+
 
     
     def NL(self,idx):
