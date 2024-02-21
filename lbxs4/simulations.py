@@ -36,6 +36,11 @@ class LBSky:
         self.components = [CMB()]
         self.instrument = INST(None,self.lb_inst.center_frequency)
         self.bins = np.arange(1000) * 50
+
+
+        ### hard coded for now
+        self.nilc_dir = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/medium/nilc_standB2_b0b5'
+        self.nilc_mask = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits')
     
     def TQU(self,freq,idx,convolve=True):
         fwhm = np.radians(self.lb_inst.get_fwhm(freq)/60)
@@ -127,4 +132,36 @@ class LBSky:
     def HILC_ncl(self,idx):
         nalm = self.HILC_noise(idx)[0]
         return hp.alm2cl(nalm[0]),hp.alm2cl(nalm[1]),hp.alm2cl(nalm[2])
+
+    def NILC_Elm(self,idx,mask=False):
+        fname = os.path.join(self.nilc_dir,f'E_{idx:04d}_reso30acm.fits')
+        if not os.path.isfile(fname):
+            raise ValueError(f'NILC alms for index {idx:04d} not found')
+        else:
+            if mask:
+                emap = hp.read_map(fname) * self.nilc_mask 
+            else:
+                emap = hp.read_map(fname)
+            return hp.map2alm(emap)
+
+    def NILC_ncl(self,idx):
+        return hp.read_cl(os.path.join(self.nilc_dir, f'cl_E_nres_medium_nilc_standB2_b0b5_{idx:04d}_reso30acm.fits'))
+
+
+class S4Sky:
+
+    def __init__(self,nside):
+        self.nside = nside 
+        self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/fits'
+        self.mask = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/masks/chwide_clip0p3relhits_NSIDE2048.fits')
+
+    def NILC_Elm(self,idx):
+        fname = os.path.join(self.path,f'NILC_CMB-S4_CHWIDE-Emap_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')
+        if not os.path.isfile(fname):
+            raise ValueError(f'NILC alms for index {idx:04d} not found')
+        else:
+            emap = hp.read_map(fname)
+            return hp.map2alm(emap)
         
+    def NILC_ncl(self,idx):
+        return hp.anafast(hp.read_map(os.path.join(self.path, f'NILC_CMB-S4_CHWIDE-Enoise_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')))
