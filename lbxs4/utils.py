@@ -3,6 +3,7 @@ import numpy as np
 from functools import wraps
 import time
 import hashlib
+import healpy as hp
 
 def timing(f):
     @wraps(f)
@@ -62,3 +63,35 @@ def cl2arc(cl):
 
 def noise(arr):
     return cl2arc(1/sum(1/arc2cl(arr)))
+
+def change_coord(m, coord):
+    """ Change coordinates of a HEALPIX map
+
+    Parameters
+    ----------
+    m : map or array of maps
+      map(s) to be rotated
+    coord : sequence of two character
+      First character is the coordinate system of m, second character
+      is the coordinate system of the output map. As in HEALPIX, allowed
+      coordinate systems are 'G' (galactic), 'E' (ecliptic) or 'C' (equatorial)
+
+    Example
+    -------
+    The following rotate m from galactic to equatorial coordinates.
+    Notice that m can contain both temperature and polarization.
+    >>>> change_coord(m, ['G', 'C'])
+    """
+    # Basic HEALPix parameters
+    npix = m.shape[-1]
+    nside = hp.npix2nside(npix)
+    ang = hp.pix2ang(nside, np.arange(npix))
+
+    # Select the coordinate transformation
+    rot = hp.Rotator(coord=reversed(coord))
+
+    # Convert the coordinates
+    new_ang = rot(*ang)
+    new_pix = hp.ang2pix(nside, *new_ang)
+
+    return m[..., new_pix]
