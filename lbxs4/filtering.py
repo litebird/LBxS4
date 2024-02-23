@@ -172,13 +172,12 @@ class FiltCoadd:
 
         self.option = ''
 
-        assert (lblib is None) and (s4lib is None), "At least one library should be defined"
+
 
         if lblib is not None:
             assert isinstance(lblib,LBSky), "lblib should be an instance of LBSky"
             print("INFO:LiteBIRD simulation library is loaded")
             self.option = 'LB'
-
         
         if s4lib is not None:
             assert isinstance(s4lib,S4Sky), "s4lib should be an instance of S4Sky"
@@ -190,7 +189,8 @@ class FiltCoadd:
             print("INFO:Coaddition is enabled")
             self.option = 'LBxS4'
         else:
-            assert (lblib is not None) or (s4lib is not None), "Without coaddition, at least one library should be defined"
+            if (lblib is not None) and (s4lib is not None):
+                raise ValueError("Without coaddition, Only one library should be defined")
         
         self.libdir = os.path.join(libdir,f'FiltCoadd_{self.option}')
         os.makedirs(self.libdir,exist_ok=True)
@@ -202,6 +202,7 @@ class FiltCoadd:
         self.beam = None
         self.fsky = None
         self.ninv = None
+        self.mask = None
         self.__find_internal_params__()
 
     def __find_internal_params__(self):
@@ -210,12 +211,14 @@ class FiltCoadd:
             self.lmax = 3*self.nside - 1
             self.beam = np.reshape(self.lblib.beam,(1,self.lmax+1))
             self.fsky = self.lblib.nilc_fsky
+            self.mask = self.lblib.nilc_mask
             self.ninv = np.reshape(np.array((self.lblib.nilc_mask,self.lblib.nilc_mask)),(2,1,hp.nside2npix(self.nside)))
         elif self.option == 'S4':
             self.nside = self.s4lib.nside
             self.lmax = 3*self.nside - 1
             self.beam = np.reshape(self.s4lib.beam,(1,self.lmax+1))
             self.fsky = self.s4lib.nilc_fsky
+            self.mask = self.s4lib.nilc_mask
             self.ninv = np.reshape(np.array((self.s4lib.nilc_mask,self.s4lib.nilc_mask)),(2,1,hp.nside2npix(self.nside)))
         elif self.option == 'LBxS4':
             self.nside = self.s4lib.nside
@@ -224,11 +227,13 @@ class FiltCoadd:
             __beam__[0] = self.lblib.beam if self.lblib.lmax == self.s4lib.lmax else np.append(self.lblib.beam,np.zeros(self.s4lib.lmax-self.lblib.lmax))
             __beam__[1] = self.s4lib.beam
             self.beam = __beam__
-            __ninv__ = np.zeros((2,2,hp.nside2npix(s4.nside)))
-            __ninv__[:,0,:] = hp.ud_grade(self.lblib.nilc_mask,self.s4lib.nside) * self.s4lib.nilc_mask
-            __ninv__[:,1,:] = __ninv__[:,0,:]
+            self.mask = hp.ud_grade(self.lblib.nilc_mask,self.s4lib.nside) * self.s4lib.nilc_mask
+            __ninv__ = np.zeros((2,2,hp.nside2npix(self.nside)))
+            __ninv__[:,0,:] = self.mask
+            __ninv__[:,1,:] = self.mask
             self.ninv = __ninv__
-            self.fsky = np.average(__ninv__[:,0,:])
+            
+            self.fsky = np.average(self.mask)
         else:
             raise ValueError("Unknown option")
     
@@ -318,6 +323,17 @@ class FiltCoadd:
         else:
             return E
 
+    def plot_W_E(self,idx):
+        E = self.filtEmode(idx,wiener=True)
+        we = cs.utils.alm2cl(self.lmax,E)
+        plt.figure(figsize=(5,5))
+        plt.loglog(we)
+        plt.loglog(self.cl_len[1,:])
+        plt.xlim(2,1000)
+        plt.ylim(1e-18,1e-14)
+        plt.legend(['Wiener E','Input E'], fontsize=15)
+        plt.xlabel('$\ell$',fontsize=20)
+        plt.ylabel('$C_\ell$',fontsize=20)
         
 
 
