@@ -8,17 +8,20 @@ import pickle as pl
 
 class Delenser:
 
-    def __init__(self,libdir,filt_lib,mt_lib,lmax=1024,elmin=150,klmin=2):
+    def __init__(self,libdir,filt_lib,tracer_lib,lmax=1024,elmin=150,klmin=2):
         self.libdir = libdir
         self.filt_lib = filt_lib
-        self.mt_lib = mt_lib
+        self.mt_lib = tracer_lib
         self.lmax = lmax
         self.elmin = elmin
         self.klmin = klmin
 
     
     def wiener_E(self,idx):
-        return self.filt_lib.wiener_E(idx)
+        try:
+            return self.filt_lib.wiener_E(idx)
+        except:
+            return self.filt_lib.filtEmode(idx,wiener=True)
 
     def wiener_B(self,idx):
         return self.filt_lib.wiener_B(idx)

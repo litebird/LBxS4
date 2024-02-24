@@ -1,6 +1,7 @@
 from lbxs4.foreground import Foregrounds
 from lbxs4.noise import NoiseModel
 from lbxs4.cmb import CMBLensed
+import lbxs4.utils as utils
 import numpy as np
 import healpy as hp
 from tqdm import tqdm
@@ -18,7 +19,7 @@ class INST:
 
 class LBSky:
     
-    def __init__(self,libdir,nside):
+    def __init__(self,libdir,nside=512,beam=30):
         self.libdir = os.path.join(libdir,'CompSep')
         self.hilc_alms_dir = os.path.join(self.libdir,'HILC_alms')
         self.hilc_weights_dir = os.path.join(self.libdir,'HILC_weights')
@@ -28,6 +29,7 @@ class LBSky:
         os.makedirs(self.hilc_noise_dir,exist_ok=True)
 
         self.nside = nside
+        self.lmax = 3*nside-1
         self.fg = Foregrounds(libdir,nside)
         self.noise = NoiseModel(nside)
         self.cmb = CMBLensed(nside)
@@ -36,6 +38,13 @@ class LBSky:
         self.components = [CMB()]
         self.instrument = INST(None,self.lb_inst.center_frequency)
         self.bins = np.arange(1000) * 50
+
+
+        ### hard coded for now
+        self.nilc_dir = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/medium/nilc_standB2_b0b5'
+        self.nilc_mask = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits')
+        self.nilc_fsky = np.average(self.nilc_mask)
+        self.beam = self.beam = hp.gauss_beam(np.radians(beam/60),lmax = self.lmax)
     
     def TQU(self,freq,idx,convolve=True):
         fwhm = np.radians(self.lb_inst.get_fwhm(freq)/60)
@@ -127,4 +136,43 @@ class LBSky:
     def HILC_ncl(self,idx):
         nalm = self.HILC_noise(idx)[0]
         return hp.alm2cl(nalm[0]),hp.alm2cl(nalm[1]),hp.alm2cl(nalm[2])
+
+    def NILC_Elm(self,idx,mask=False):
+        fname = os.path.join(self.nilc_dir,f'E_{idx:04d}_reso30acm.fits')
+        if not os.path.isfile(fname):
+            raise ValueError(f'NILC alms for index {idx:04d} not found')
+        else:
+            if mask:
+                emap = hp.read_map(fname) * self.nilc_mask 
+            else:
+                emap = hp.read_map(fname)
+            return hp.map2alm(emap)
+
+    def NILC_ncl(self,idx):
+        return hp.read_cl(os.path.join(self.nilc_dir, f'cl_E_nres_medium_nilc_standB2_b0b5_{idx:04d}_reso30acm.fits'))
+
+
+class S4Sky:
+
+    def __init__(self,nside=1024,beam=2.1):
+        self.nside = nside
+        self.lmax = 3*nside-1
+        self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/fits'
+        self.mask = hp.ud_grade(hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/masks/chwide_clip0p3relhits_NSIDE2048.fits'),nside)
+        self.nilc_fsky = np.average(self.mask)
+        mask80 = hp.ud_grade(hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits'),nside)
+        self.nilc_mask = utils.change_coord(self.mask,['C','G'])*mask80
+        del mask80
+        self.nilc_fsky = np.average(self.nilc_mask)
+        self.beam = hp.gauss_beam(np.radians(beam/60),lmax=self.lmax)
+
+    def NILC_Elm(self,idx):
+        fname = os.path.join(self.path,f'NILC_CMB-S4_CHWIDE-Emap_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')
+        if not os.path.isfile(fname):
+            raise ValueError(f'NILC alms for index {idx:04d} not found')
+        else:
+            emap = hp.read_map(fname)
+            return hp.map2alm(emap,lmax=self.lmax)
         
+    def NILC_ncl(self,idx):
+        return hp.anafast(hp.read_map(os.path.join(self.path, f'NILC_CMB-S4_CHWIDE-Enoise_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')))[:self.lmax+1]
