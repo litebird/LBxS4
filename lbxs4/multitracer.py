@@ -254,7 +254,7 @@ class CoaddKappa:
         W = {}
         W['litebird'] = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,'LB_Nside2048_fsky_0p8_binary.fits')),self.nside)
         for survey in ['euclid','lsst','cib','cmbs4']:
-            W[survey] = W['litebird']*hp.read_map(os.path.join(MASKDIR,survey+'.fits'))
+            W[survey] = W['litebird']*hp.ud_grade(hp.read_map(os.path.join(MASKDIR,survey+'.fits')),self.nside)
         mask = {}
         for m in self.klist.values():
             if m == 'klb':  mask[m] = W['litebird']
@@ -270,7 +270,12 @@ class CoaddKappa:
             sfname = os.path.join(MASSDIR,f's_{m}_{idx:04d}.pkl')
             nfname = os.path.join(MASSDIR,f'n_{m}_{idx:04d}.pkl')
             klm = pl.load(open(sfname,'rb')) + pl.load(open(nfname,'rb'))
+            if len(klm) < self.lmax+1:
+                Klm = np.zeros((self.lmax+1,self.lmax+1),dtype=complex)
+                Klm[:klm.shape[0],:klm.shape[1]] = klm
+                klm = Klm
             kmap = cs.utils.hp_alm2map(self.nside,self.lmax,self.lmax,np.nan_to_num(klm[:self.lmax+1,:self.lmax+1]))
+            del Klm
             kmaps[I,:] = kmap * self.masks[m]
             del (klm, kmap)
         return kmaps
@@ -292,7 +297,7 @@ class CoaddKappa:
         l = np.arange(len(self.cl_unl['pp']))
         dl = (l**2*(l+1)**2)/4
         coadd = self.coadd(idx)
-        plt.loglog(cs.utils.alm2cl(1000,coadd))
+        plt.loglog(cs.utils.alm2cl(self.lmax,coadd))
         plt.loglog(self.cl_unl['pp']*dl)
 
 

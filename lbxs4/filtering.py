@@ -257,10 +257,10 @@ class FiltCoadd:
             return QU
         elif self.option == 'LBxS4':
             lbElm = self.lblib.NILC_Elm(idx)
-            lbQU = hp.alm2map_spin([lbElm,lbElm*0],self.nside,2,self.lmax)
+            lbQU = hp.alm2map(np.array([lbElm*0,lbElm,lbElm*0]),self.nside)[1:]
             del lbElm
             s4Elm = self.s4lib.NILC_Elm(idx)
-            _s4QU_ = hp.alm2map_spin([s4Elm,s4Elm*0],self.nside,2,self.lmax)
+            _s4QU_ = hp.alm2map(np.array([s4Elm*0,s4Elm,s4Elm*0]),self.nside,)[1:]
             del s4Elm
             s4QU = change_coord(np.array(_s4QU_),['C','G'])
             del _s4QU_
@@ -290,7 +290,7 @@ class FiltCoadd:
         elif self.option == 'S4':
             return self.__invNL__(self.s4lib,idx)
         elif self.option == 'LBxS4':
-            lbs4_NL = np.zeros((2,2,s4.lmax+1))
+            lbs4_NL = np.zeros((2,2,self.lmax+1))
             lbs4_NL[0,0,:] = self.__invNL__(self.lblib,idx,shaped=False)
             lbs4_NL[0,1,:] = self.__invNL__(self.s4lib,idx,shaped=False)
             return lbs4_NL
@@ -306,7 +306,6 @@ class FiltCoadd:
                 channels = 1
             else:
                 channels = 2
-
             E,B = cs.cninv.cnfilter_freq(2,channels,self.nside,self.lmax,self.cl_len[1:3,:self.lmax+1],
                                     self.beam, self.ninv,QU,chn=1,itns=[1000],filter="",
                                     eps=[eps],ro=10,inl=NL,stat=status)

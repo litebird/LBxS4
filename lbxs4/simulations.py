@@ -160,8 +160,11 @@ class S4Sky:
         self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/fits'
         self.mask = hp.ud_grade(hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/masks/chwide_clip0p3relhits_NSIDE2048.fits'),nside)
         self.nilc_fsky = np.average(self.mask)
-        self.nilc_mask = utils.change_coord(self.mask,['C','G'])
-        self.beam = hp.gauss_beam(np.radians(beam/60),lmax = self.lmax)
+        mask80 = hp.ud_grade(hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits'),nside)
+        self.nilc_mask = utils.change_coord(self.mask,['C','G'])*mask80
+        del mask80
+        self.nilc_fsky = np.average(self.nilc_mask)
+        self.beam = hp.gauss_beam(np.radians(beam/60),lmax=self.lmax)
 
     def NILC_Elm(self,idx):
         fname = os.path.join(self.path,f'NILC_CMB-S4_CHWIDE-Emap_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')
