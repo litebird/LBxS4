@@ -229,7 +229,7 @@ class mass_tracer():
 
 class CoaddKappa:
 
-    def __init__(self,libdir,lmin,lmax,nside,cl_file='FFP10_wdipole_lenspotentialCls.dat'):
+    def __init__(self,libdir,lmin,lmax,nside,cl_file='FFP10_wdipole_lenspotentialCls.dat',lb_mask=None,s4_mask=None):
         self.libdir = os.path.join(libdir,'Kappa')  
         os.makedirs(self.libdir,exist_ok=True)
         self.nside = nside
@@ -243,26 +243,52 @@ class CoaddKappa:
         self.cov_s = self.mass_tracer.cov_signal()
         self.cov_n = self.mass_tracer.cov_noise()
 
+        ## need to remove later
+        self.lb_mask = lb_mask
+        self.s4_mask = s4_mask
+        ######################
+
         self.masks = self.mask()
         self.cl_unl = camb_clfile(os.path.join(DATDIR,cl_file))
 
         self.InvN = np.reshape( np.array([ self.masks[m] for m in self.klist.values() ] ),(self.nkap,self.npix) )
         self.INls = np.array( [ 1./self.cov_n[:,:,l].diagonal() for l in range(lmax+1) ] ).T
 
-    
     def mask(self,):
         W = {}
-        W['litebird'] = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,'LB_Nside2048_fsky_0p8_binary.fits')),self.nside)
-        for survey in ['euclid','lsst','cib','cmbs4']:
-            W[survey] = W['litebird']*hp.ud_grade(hp.read_map(os.path.join(MASKDIR,survey+'.fits')),self.nside)
+        W['cmbs4'] = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,'cmbs4.fits')),self.nside)
+        for survey in ['euclid','lsst','cib']:
+            W[survey] = W['cmbs4']*hp.ud_grade(hp.read_map(os.path.join(MASKDIR,survey+'.fits')),self.nside)
         mask = {}
         for m in self.klist.values():
-            if m == 'klb':  mask[m] = W['litebird']
             if m == 'ks4':  mask[m] = W['cmbs4']
             if m == 'cib':  mask[m] = W['cib']
             if 'euc' in m:  mask[m] = W['euclid']
             if 'lss' in m:  mask[m] = W['lsst']
         return mask
+
+    
+    # def mask(self,):
+    #     W = {}
+    #     if self.lb_mask is not None:
+    #         W['litebird'] = hp.ud_grade(self.lb_mask,self.nside)
+    #     else:
+    #         W['litebird'] = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,'LB_Nside2048_fsky_0p8_binary.fits')),self.nside)
+        
+    #     for survey in ['euclid','lsst','cib','cmbs4']:
+    #         W[survey] = W['litebird']*hp.ud_grade(hp.read_map(os.path.join(MASKDIR,survey+'.fits')),self.nside)
+    #         if (survey == 'cmbs4') and (self.s4_mask is not None):
+    #             W[survey] = W['litebird']*hp.ud_grade(self.s4_mask,self.nside)
+            
+    #     mask = {}
+    #     for m in self.klist.values():
+    #         if m == 'klb':  mask[m] = W['litebird']
+    #         if m == 'ks4':  mask[m] = W['cmbs4']
+    #         if m == 'cib':  mask[m] = W['cib']
+    #         if 'euc' in m:  mask[m] = W['euclid']
+    #         if 'lss' in m:  mask[m] = W['lsst']
+        
+    #     return mask
 
     def kappa_maps(self,idx):
         kmaps = np.zeros((self.nkap,self.npix))
@@ -275,19 +301,18 @@ class CoaddKappa:
                 Klm[:klm.shape[0],:klm.shape[1]] = klm
                 klm = Klm
             kmap = cs.utils.hp_alm2map(self.nside,self.lmax,self.lmax,np.nan_to_num(klm[:self.lmax+1,:self.lmax+1]))
-            del Klm
             kmaps[I,:] = kmap * self.masks[m]
             del (klm, kmap)
         return kmaps
 
-    def coadd(self,idx):
+    def coadd(self,idx,status=None):
         fname = os.path.join(self.libdir,f'coadd_{idx:04d}.pkl')
         if os.path.isfile(fname):
             return pl.load(open(fname,'rb'))
         else:
             kmaps = self.kappa_maps(idx)
             xlm = cs.cninv.cnfilter_kappa(self.nkap,self.nside,self.lmax,self.cov_s,self.InvN,
-                                      kmaps,inl=self.INls,chn=1,eps=[1e-4],itns=[1000],ro=10,stat='status_mass_cinv-1.txt')
+                                      kmaps,inl=self.INls,chn=1,eps=[1e-4],itns=[1000],ro=10,stat=status)
             coadded =  np.array( [ np.dot(self.cov_s[0,:,l],xlm[:,l,:]) for l in range(self.lmax+1) ] )
             del (kmaps, xlm)
             pl.dump(coadded,open(fname,'wb'))

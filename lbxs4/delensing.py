@@ -8,13 +8,15 @@ import pickle as pl
 
 class Delenser:
 
-    def __init__(self,libdir,filt_lib,tracer_lib,lmax=1024,elmin=150,klmin=2):
+    def __init__(self,libdir,filt_lib,tracer_lib,lmax=1024,elmin=2,elmax=1024,klmin=2,klmax=1024):
         self.libdir = libdir
         self.filt_lib = filt_lib
         self.mt_lib = tracer_lib
         self.lmax = lmax
         self.elmin = elmin
+        self.elmax = elmax
         self.klmin = klmin
+        self.klmax = klmax
 
     
     def wiener_E(self,idx):
@@ -38,7 +40,7 @@ class Delenser:
             Klm[:klm.shape[0],:klm.shape[1]] = klm
             klm = Klm
 
-        return cs.delens.lensingb(self.lmax,self.elmin,self.lmax,self.klmin,self.lmax, wElm, klm, gtype='k')
+        return cs.delens.lensingb(self.lmax,self.elmin,self.elmax,self.klmin,self.klmax, wElm, klm, gtype='k')
     
     def alpha_l(self,idx):
         # eq 19 of https://arxiv.org/pdf/2110.09730.pdf
