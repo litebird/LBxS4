@@ -38,7 +38,7 @@ class Delenser:
         if klm.shape[0] < 1025:
             Klm = np.zeros((1025,1025))
             Klm[:klm.shape[0],:klm.shape[1]] = klm
-            klm = Klm
+            klm = Klm* 2.726e6
 
         return cs.delens.lensingb(self.lmax,self.elmin,self.elmax,self.klmin,self.klmax, wElm, klm, gtype='k')
     

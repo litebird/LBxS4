@@ -12,7 +12,7 @@ import constant as c
 
 
 from lbxs4.config import SPECTRADIR,MASKDIR,MASSDIR,DATDIR
-from lbxs4.utils import camb_clfile
+from lbxs4.utils import camb_clfile,change_coord
 
 
 
@@ -254,11 +254,25 @@ class CoaddKappa:
         self.InvN = np.reshape( np.array([ self.masks[m] for m in self.klist.values() ] ),(self.nkap,self.npix) )
         self.INls = np.array( [ 1./self.cov_n[:,:,l].diagonal() for l in range(lmax+1) ] ).T
 
-    def mask(self,):
+    # def mask(self,):
+    #     W = {}
+    #     W['cmbs4'] = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,'cmbs4.fits')),self.nside)
+    #     for survey in ['euclid','lsst','cib']:
+    #         W[survey] = W['cmbs4']*hp.ud_grade(hp.read_map(os.path.join(MASKDIR,survey+'.fits')),self.nside)
+    #     mask = {}
+    #     for m in self.klist.values():
+    #         if m == 'ks4':  mask[m] = W['cmbs4']
+    #         if m == 'cib':  mask[m] = W['cib']
+    #         if 'euc' in m:  mask[m] = W['euclid']
+    #         if 'lss' in m:  mask[m] = W['lsst']
+    #     return mask
+    
+    def mask(self):
         W = {}
-        W['cmbs4'] = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,'cmbs4.fits')),self.nside)
+        W['cmbs4'] = hp.ud_grade(self.s4_mask,self.nside)
         for survey in ['euclid','lsst','cib']:
-            W[survey] = W['cmbs4']*hp.ud_grade(hp.read_map(os.path.join(MASKDIR,survey+'.fits')),self.nside)
+            _mask = hp.ud_grade(hp.read_map(os.path.join(MASKDIR,survey+'.fits')),self.nside)
+            W[survey] = W['cmbs4']* change_coord(_mask,['G','C'])
         mask = {}
         for m in self.klist.values():
             if m == 'ks4':  mask[m] = W['cmbs4']
