@@ -50,7 +50,7 @@ class S4Sky:
         self.nside = nside
         self.lmax = 3*nside-1
         self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/fits'
-        mask =hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/masks/chwide_clip0p3relhits_NSIDE2048.fits')
+        mask =hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/masks_common/chwide_clip0p3relhits_NSIDE2048.fits')
         mask80 = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits')
         mask = hp.ud_grade(mask,nside)
         mask80 = utils.change_coord(hp.ud_grade(mask80,nside),['G','C'])

@@ -336,7 +336,7 @@ class CoaddKappa:
         l = np.arange(len(self.cl_unl['pp']))
         dl = (l**2*(l+1)**2)/4
         coadd = self.coadd(idx)
-        plt.loglog(cs.utils.alm2cl(self.lmax,coadd))
+        plt.loglog(cs.utils.alm2cl(self.lmax,coadd)/0.4)
         plt.loglog(self.cl_unl['pp']*dl)
 
 

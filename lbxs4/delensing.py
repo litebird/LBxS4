@@ -8,7 +8,7 @@ import pickle as pl
 
 class Delenser:
 
-    def __init__(self,libdir,filt_lib,tracer_lib,lmax=1024,elmin=2,elmax=1024,klmin=2,klmax=1024):
+    def __init__(self,libdir,filt_lib,tracer_lib,lmax=1024,elmin=2,elmax=2048,klmin=2,klmax=1024):
         self.libdir = libdir
         self.filt_lib = filt_lib
         self.mt_lib = tracer_lib
@@ -33,8 +33,8 @@ class Delenser:
         return self.mt_lib.coadd(idx)
     
     def lensing_B(self,idx):
-        wElm = self.wiener_E(idx)[:self.lmax +1,:self.lmax +1]
-        klm = self.wiener_k(idx)[:self.lmax +1,:self.lmax +1]
+        wElm = self.wiener_E(idx)[:self.elmax +1,:self.elmax +1]
+        klm = self.wiener_k(idx)[:self.klmax +1,:self.klmax +1]
         if klm.shape[0] < 1025:
             Klm = np.zeros((1025,1025))
             Klm[:klm.shape[0],:klm.shape[1]] = klm
