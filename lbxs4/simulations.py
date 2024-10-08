@@ -5,7 +5,6 @@ import lbxs4.utils as utils
 import numpy as np
 import healpy as hp
 from tqdm import tqdm
-from fgbuster import harmonic_ilc_alm,CMB
 import os
 import pickle as pl
 
@@ -22,6 +21,7 @@ class LBSky:
         self.nside = nside
         self.lmax = 3*nside-1
         self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/medium/nilc_standB2_b0b5_rotated'
+        self.pathb = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/medium/mcnilc'
         mask = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits')
         self.mask = utils.change_coord(hp.ud_grade(mask,self.nside),['G','C'])
         self.fsky = np.average(self.mask)
@@ -39,9 +39,26 @@ class LBSky:
             rot.rotate_alm(elm,inplace=True)
             emap = hp.alm2map(elm,self.nside)*self.mask
             return hp.map2alm(emap)
+    
+    def NILC_Blm(self,idx):
+        fname = os.path.join(self.pathb,f"B_{idx:04}_reso70.5acm_ns64.fits")
+        if not os.path.isfile(fname):
+            raise ValueError(f'NILC alms for index {idx:04d} not found')
+        else:
+            local_nside = 64
+            lmax = 3* local_nside - 1
+            bmap = hp.read_map(fname)
+            blm = hp.map2alm(bmap,lmax=lmax)
+            rot = hp.Rotator(coord=['G', 'C'])
+            rot.rotate_alm(blm,inplace=True)
+            bmap = hp.alm2map(blm,local_nside)*hp.ud_grade(self.mask,local_nside)
+            return hp.map2alm(bmap)
 
     def NILC_ncl(self,idx):
         return hp.read_cl(os.path.join(self.path, f'cl_E_rotatedCMB_nres_medium_nilc_standB2_b0b5_{idx:04d}_reso30acm.fits'))
+
+    def NILC_nclb(self,idx):
+        return hp.read_cl(os.path.join(self.pathb, f'cl_B_nres_medium_mcnilc_{idx:04}_reso70.5acm_lmax150.fits'))
 
 
 class S4Sky:
@@ -69,3 +86,4 @@ class S4Sky:
 
     def NILC_ncl(self,idx):
         return hp.anafast(hp.read_map(os.path.join(self.path, f'NILC_CMB-S4_CHWIDE-Enoise_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')))[:self.lmax+1]
+    
