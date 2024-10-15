@@ -1,4 +1,3 @@
-# based on https://github.com/litebird/LiteBIRD-lensing/blob/master/tools_multitracer.py
 import numpy as np
 import healpy as hp
 import pickle as pl
@@ -13,8 +12,9 @@ import constant as c
 
 from lbxs4.config import SPECTRADIR,MASKDIR,MASSDIR,DATDIR
 from lbxs4.utils import camb_clfile,change_coord
+from lbxs4.simulations import S4Sky
 
-
+REAL_S4_KAPPA = True
 
 def galaxy_distribution( zi, survey=['euc','lss'], zbn={'euc':5,'lss':5}, z0={'euc':.9/np.sqrt(2.),'lss':.311}, nz_b={'euc':1.5,'lss':1.}, sig={'euc':.05,'lss':.05}): # type: ignore
     
@@ -133,10 +133,12 @@ def get_spectrum_noise(lmax,lminI=100,nu=353.,return_klist=False,frac=None,**kwa
     #    obj.compute_nlkk()
 
     if 'klb' in klist.values():
-        nl['klb'] = np.loadtxt(os.path.join(SPECTRADIR,'clklbklb.dat'),unpack=True)[:lmax+1,1]
+        raise NotImplementedError('Need to implement noise for LiteBIRD')
     
     if 'ks4' in klist.values():
-        nl['ks4'] = np.loadtxt(os.path.join(SPECTRADIR,'clks4ks4.dat'),unpack=True)[:lmax+1,1]
+        s4sky = S4Sky()
+        nl['ks4'] = s4sky.N0_mean(lmax=lmax)
+
 
     if 'cib' in klist.values():
         Jysr = c.MJysr2uK(nu)/c.Tcmb
@@ -229,7 +231,7 @@ class mass_tracer():
 
 class CoaddKappa:
 
-    def __init__(self,libdir,lmin,lmax,nside,cl_file='FFP10_wdipole_lenspotentialCls.dat',lb_mask=None,s4_mask=None):
+    def __init__(self,libdir,lmin,lmax,nside,cl_file='FFP10_wdipole_lenspotentialCls.dat',lb_mask=None,s4_mask=None,use_real_s4_kappa=True):
         self.libdir = os.path.join(libdir,'Kappa')  
         os.makedirs(self.libdir,exist_ok=True)
         self.nside = nside
@@ -253,6 +255,7 @@ class CoaddKappa:
 
         self.InvN = np.reshape( np.array([ self.masks[m] for m in self.klist.values() ] ),(self.nkap,self.npix) )
         self.INls = np.array( [ 1./self.cov_n[:,:,l].diagonal() for l in range(lmax+1) ] ).T
+        self.use_real_s4_kappa = use_real_s4_kappa
 
     # def mask(self,):
     #     W = {}
@@ -307,9 +310,16 @@ class CoaddKappa:
     def kappa_maps(self,idx):
         kmaps = np.zeros((self.nkap,self.npix))
         for I, m in self.klist.items():
-            sfname = os.path.join(MASSDIR,f's_{m}_{idx:04d}.pkl')
-            nfname = os.path.join(MASSDIR,f'n_{m}_{idx:04d}.pkl')
-            klm = pl.load(open(sfname,'rb')) + pl.load(open(nfname,'rb'))
+            if self.use_real_s4_kappa and m == 'ks4':
+                s4sky = S4Sky()
+                _klm = s4sky.klm(idx)
+                local_lmax = hp.Alm.getlmax(len(_klm))
+                klm = cs.utils.lm_healpy2healpix(_klm,local_lmax)
+                del _klm
+            else:
+                sname = os.path.join(MASSDIR,f's_{m}_{idx:04d}.pkl')
+                nname = os.path.join(MASSDIR,f'n_{m}_{idx:04d}.pkl')
+                klm = pl.load(open(sname,'rb')) + pl.load(open(nname,'rb'))
             if len(klm) < self.lmax+1:
                 Klm = np.zeros((self.lmax+1,self.lmax+1),dtype=complex)
                 Klm[:klm.shape[0],:klm.shape[1]] = klm
@@ -320,7 +330,12 @@ class CoaddKappa:
         return kmaps
 
     def coadd(self,idx,status=None):
-        fname = os.path.join(self.libdir,f'coadd_{idx:04d}.pkl')
+        if self.use_real_s4_kappa:
+            print('Reconstructed S4 kappa maps are used')
+            fname = os.path.join(self.libdir,f'coaddR_{idx:04d}.pkl')
+        else:
+            print('Simulated S4 kappa maps are used')
+            fname = os.path.join(self.libdir,f'coadd_{idx:04d}.pkl')
         if os.path.isfile(fname):
             return pl.load(open(fname,'rb'))
         else:

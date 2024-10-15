@@ -17,6 +17,7 @@ class Delenser:
         self.elmax = elmax
         self.klmin = klmin
         self.klmax = klmax
+    
 
     
     def wiener_E(self,idx):
@@ -32,13 +33,17 @@ class Delenser:
     def wiener_k(self,idx):
         return self.mt_lib.coadd(idx)
     
-    def lensing_B(self,idx):
-        wElm = self.wiener_E(idx)[:self.elmax +1,:self.elmax +1]
-        klm = self.wiener_k(idx)[:self.klmax +1,:self.klmax +1]
-        if klm.shape[0] < 1025:
-            Klm = np.zeros((1025,1025))
-            Klm[:klm.shape[0],:klm.shape[1]] = klm
-            klm = Klm* 2.726e6
+    def lensing_B(self, idx):
+        wElm = np.zeros((self.elmax + 1, self.elmax + 1), dtype=complex)
+        klm = np.zeros((self.klmax + 1, self.klmax + 1), dtype=complex)
+        _wElm = self.wiener_E(idx)[:self.elmax + 1, :self.elmax + 1]
+        _klm = self.wiener_k(idx)[:self.klmax + 1, :self.klmax + 1]
+        wElm[:_wElm.shape[0], :_wElm.shape[1]] = _wElm
+        klm[:_klm.shape[0], :_klm.shape[1]] = _klm
+
+        return cs.delens.lensingb(self.lmax, self.elmin, self.elmax, self.klmin, self.klmax, wElm, klm, gtype='k')
+
+
 
         return cs.delens.lensingb(self.lmax,self.elmin,self.elmax,self.klmin,self.klmax, wElm, klm, gtype='k')
     

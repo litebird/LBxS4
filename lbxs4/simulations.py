@@ -25,8 +25,8 @@ class LBSky:
         mask = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits')
         self.mask = utils.change_coord(hp.ud_grade(mask,self.nside),['G','C'])
         self.fsky = np.average(self.mask)
-        self.beam = self.beam = hp.gauss_beam(np.radians(beam/60),lmax = self.lmax)
-
+        self.beam = hp.gauss_beam(np.radians(beam/60),lmax = self.lmax)
+        self.beamb = hp.gauss_beam(np.radians(70.5/60),lmax = self.lmax)
 
     def NILC_Elm(self,idx,):
         fname = os.path.join(self.path,f'E_rotatedCMB_{idx:04d}_reso30acm.fits')
@@ -49,8 +49,8 @@ class LBSky:
             lmax = 3* local_nside - 1
             bmap = hp.read_map(fname)
             blm = hp.map2alm(bmap,lmax=lmax)
-            rot = hp.Rotator(coord=['G', 'C'])
-            rot.rotate_alm(blm,inplace=True)
+            #rot = hp.Rotator(coord=['G', 'C'])
+            #rot.rotate_alm(blm,inplace=True)
             bmap = hp.alm2map(blm,local_nside)*hp.ud_grade(self.mask,local_nside)
             return hp.map2alm(bmap)
 
@@ -67,6 +67,7 @@ class S4Sky:
         self.nside = nside
         self.lmax = 3*nside-1
         self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/fits'
+        self.phipath = '/global/cfs/cdirs/cmbs4xlb/v1/lensingrec/chwide_qe_v1.1'
         mask =hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/masks_common/chwide_clip0p3relhits_NSIDE2048.fits')
         mask80 = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits')
         mask = hp.ud_grade(mask,nside)
@@ -86,4 +87,37 @@ class S4Sky:
 
     def NILC_ncl(self,idx):
         return hp.anafast(hp.read_map(os.path.join(self.path, f'NILC_CMB-S4_CHWIDE-Enoise_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')))[:self.lmax+1]
+    
+    def Philm(self,idx):
+        return hp.read_alm(os.path.join(self.phipath,f'plm_resp_p_p_{idx:04}.fits'))
+    
+    def klm(self,idx):
+        phi = self.Philm(idx)
+        lmax = hp.Alm.getlmax(len(phi))
+        l = np.arange(lmax+1,dtype=int)
+        fl = l*(l+1)/2 
+        return hp.almxfl(phi,fl)
+
+    def N0(self,idx):
+        n0L = np.loadtxt(os.path.join(self.phipath,f'Nlzero_semianalytic_{idx:04}.txt'))
+        L, n0 = n0L[:,0],n0L[:,1]
+        fl = L*(L+1)/2
+        return n0 * (fl**2)
+    
+    def N0_mean(self,n=20,lmax=None):
+        N0 = []
+        for i in range(n):
+            N0.append(self.N0(i))
+        N0 = np.array(N0).mean(axis=0)
+        if lmax is not None:
+            if len(N0) < lmax+1:
+                N0 = np.concatenate((N0,np.zeros(lmax+1-len(N0))))
+            else:
+                N0 = N0[:lmax+1]
+        return N0
+
+
+
+
+
     
