@@ -14,7 +14,7 @@ from lbxs4.config import SPECTRADIR,MASKDIR,MASSDIR,DATDIR
 from lbxs4.utils import camb_clfile,change_coord
 from lbxs4.simulations import S4Sky
 
-REAL_S4_KAPPA = True
+REAL_S4_KAPPA = False
 
 def galaxy_distribution( zi, survey=['euc','lss'], zbn={'euc':5,'lss':5}, z0={'euc':.9/np.sqrt(2.),'lss':.311}, nz_b={'euc':1.5,'lss':1.}, sig={'euc':.05,'lss':.05}): # type: ignore
     
@@ -231,7 +231,7 @@ class mass_tracer():
 
 class CoaddKappa:
 
-    def __init__(self,libdir,lmin,lmax,nside,cl_file='FFP10_wdipole_lenspotentialCls.dat',lb_mask=None,s4_mask=None,use_real_s4_kappa=True):
+    def __init__(self,libdir,lmin,lmax,nside,cl_file='FFP10_wdipole_lenspotentialCls.dat',lb_mask=None,s4_mask=None,use_real_s4_kappa=False):
         self.libdir = os.path.join(libdir,'Kappa')  
         os.makedirs(self.libdir,exist_ok=True)
         self.nside = nside

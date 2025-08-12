@@ -66,9 +66,9 @@ class S4Sky:
     def __init__(self,nside=1024,beam=2.1):
         self.nside = nside
         self.lmax = 3*nside-1
-        self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_Emaps/fits'
+        self.path = '/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/nilc_EBmaps/'
         self.phipath = '/global/cfs/cdirs/cmbs4xlb/v1/lensingrec/chwide_qe_v1.1'
-        mask =hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/masks_common/chwide_clip0p3relhits_NSIDE2048.fits')
+        mask =hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/chwide/masks/dust_mask_10pc-9dsmooth_3dC2_fgres_nside2048.fits')
         mask80 = hp.read_map('/global/cfs/cdirs/cmbs4xlb/v1/component_separated/cs_products_LB/masks/mask_PlaGAL_fsky80.fits')
         mask = hp.ud_grade(mask,nside)
         mask80 = utils.change_coord(hp.ud_grade(mask80,nside),['G','C'])
@@ -78,18 +78,18 @@ class S4Sky:
         self.beam = hp.gauss_beam(np.radians(beam/60),lmax=self.lmax)
 
     def NILC_Elm(self,idx):
-        fname = os.path.join(self.path,f'NILC_CMB-S4_CHWIDE-Emap_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')
+        fname = os.path.join(self.path,f'NILC_CMB-S4_CHWIDE-EBmap_NSIDE2048_fwhm2.1_CHLAT-only_medium_NSIDE2048-lmax4096_mc{idx:03d}.fits')
         if not os.path.isfile(fname):
             raise ValueError(f'NILC alms for index {idx:04d} not found')
         else:
-            emap = hp.read_map(fname)*hp.ud_grade(self.mask,2048)
+            emap = hp.read_map(fname)*self.mask
             return hp.map2alm(emap,lmax=self.lmax)
 
     def NILC_ncl(self,idx):
-        return hp.anafast(hp.read_map(os.path.join(self.path, f'NILC_CMB-S4_CHWIDE-Enoise_NSIDE2048_fwhm2.1_CHLAT-only_medium_cos-NSIDE2048-lmax4096_mc{idx:03d}.fits')))[:self.lmax+1]
+        return hp.anafast(hp.read_map(os.path.join(self.path, f'NILC_CMB-S4_CHWIDE-EBresidual-noise_NSIDE2048_fwhm2.1_CHLAT-only_medium_NSIDE2048-lmax4096_mc{idx:03d}.fits')))[:self.lmax+1]
     
     def Philm(self,idx):
-        return hp.read_alm(os.path.join(self.phipath,f'plm_resp_p_p_{idx:04}.fits'))
+        return hp.read_alm(os.path.join(self.phipath,f'plm_reff_p_p_{idx:04}.fits'))
     
     def klm(self,idx):
         phi = self.Philm(idx)
@@ -99,7 +99,7 @@ class S4Sky:
         return hp.almxfl(phi,fl)
 
     def N0(self,idx):
-        n0L = np.loadtxt(os.path.join(self.phipath,f'Nlzero_semianalytic_{idx:04}.txt'))
+        n0L = np.loadtxt(os.path.join(self.phipath,f'Nlzero_semianalytic_reff_{idx:04}.txt'))
         L, n0 = n0L[:,0],n0L[:,1]
         fl = L*(L+1)/2
         return n0 * (fl**2)
